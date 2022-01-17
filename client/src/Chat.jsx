@@ -3,20 +3,28 @@ import {
   ApolloClient,
   InMemoryCache,
   ApolloProvider,
-  useQuery,
+  useSubscription,
   useMutation,
   gql,
 } from "@apollo/client";
-
+import { WebSocketLink } from '@apollo/client/link/ws';
 import { Container, Button } from "@mui/material";
 
+
+const link = new WebSocketLink({
+  uri: 'ws://localhost:4000/',
+  options: {
+    reconnect: true
+  }
+});
 const client = new ApolloClient({
+  link,
   uri: "http://localhost:4000/",
   cache: new InMemoryCache(),
 });
 
 const GET_MESSAGES = gql`
-  query {
+  subscription {
     messages {
       id
       content
@@ -30,7 +38,7 @@ const POST_MESSAGES = gql`
   }
 `;
 const Messages = ({ user }) => {
-  const { data } = useQuery(GET_MESSAGES);
+  const { data } = useSubscription(GET_MESSAGES);
   if (!data) {
     return null;
   }
@@ -50,10 +58,12 @@ const Messages = ({ user }) => {
                 height: 50,
                 width: 50,
                 marginRight: "0.5em",
-                border: "2px solid black",
-                borderRadius: "50%",
+                border: "1px solid ",
+                display:'flex',
                 textAlign: "center",
+                alignItems:"center",
                 fontSize: "1em",
+                borderRadius:'50%'
               }}
             >
               {messageUser.slice(0, 4).toUpperCase()}
@@ -61,7 +71,7 @@ const Messages = ({ user }) => {
           )}
           <div
             style={{
-              background: user === messageUser ? "#58bf56" : "#e5e6ea",
+              background: user === messageUser ? "#58bf56" : "pink",
               color: user === messageUser ? "white" : "black",
               padding: "1em",
               borderRadius: "1em",
