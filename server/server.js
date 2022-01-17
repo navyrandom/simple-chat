@@ -1,8 +1,7 @@
-// step 1 : import GraphQLServer with graphql-yoga, npm this before
-const {GraphQLServer} = require('graphql-yoga')
-// step 5: stock the messages
-const messages = []
-// step 3: define types of the keys
+const { GraphQLServer, PubSub } = require("graphql-yoga");
+
+const messages = [];
+
 const typeDefs = `
 type Message {
     id: ID!
@@ -15,29 +14,46 @@ type Query {
 type Mutation {
     postMessage(user: String!, content: String!): ID!
 }
-`
-
-// step 4: show the results in resolvers
+type Subscription {
+    messages: [Message!]
+  }
+`;
+const subscribers = [];
+const onMessagesUpdates = (fn) => subscribers.push(fn);
 const resolvers = {
-    Query: {
-        messages: () => messages, 
+  Query: {
+    messages: () => messages,
+  },
+  Mutation: {
+    postMessage: (parent, { user, content }) => {
+      const id = messages.length;
+      messages.push({
+        id,
+        user,
+        content,
+      });
+      subscribers.forEach((fn) => fn());
+      return id;
     },
-    Mutation: {
-        postMessage: (parent, {user, content}) => {
-            const id = messages.length;
-            messages.push({
-                id, 
-                user,
-                content
-            });
-            return id;
-        }
-    }
-}
-//step 2: create server
+  },
+  Subscription: {
+    messages: {
+      subscribe: (parent, args, { pubsub }) => {
+        const channel = Math.random().toString(36).slice(2, 15);
+        onMessagesUpdates(() => pubsub.publish(channel, { messages }));
+        setTimeout(() => pubsub.publish(channel, { messages }), 0);
+        return pubsub.asyncIterator(channel);
+      },
+    },
+  },
+};
+const pubsub = new PubSub();
+
 const server = new GraphQLServer({
-    // step 6: bring typeDefs and resolvers in here and npm run start to try graphql
-    typeDefs, resolvers});
-server.start(({port})=> {
-    console.log(`server on http://localhost:${port}`)
-}) 
+  typeDefs,
+  resolvers,
+  context: { pubsub },
+});
+server.start(({ port }) => {
+  console.log(`server on http://localhost:${port}`);
+});
